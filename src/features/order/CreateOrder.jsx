@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Form, redirect, useActionData, useNavigation } from "react-router-dom";
+import { createOrder } from "../../services/apiRestaurant";
 
 // https://uibakery.io/regex-library/phone-number
 const isValidPhone = (str) =>
@@ -32,49 +34,82 @@ const fakeCart = [
 
 function CreateOrder() {
   // const [withPriority, setWithPriority] = useState(false);
+  const navigate = useNavigation();
+  const formError = useActionData();
+
+  const isSubmitting = navigate.state === "submitting";
   const cart = fakeCart;
 
   return (
     <div>
       <h2>Ready to order? Let's go!</h2>
 
-      <form>
+      {/* <Form method="POST" action="/order/new"> */}
+      <Form method='POST'>
         <div>
           <label>First Name</label>
-          <input type="text" name="customer" required />
+          <input type='text' name='customer' required />
         </div>
 
         <div>
           <label>Phone number</label>
           <div>
-            <input type="tel" name="phone" required />
+            <input type='tel' name='phone' required />
           </div>
+          {formError?.phone && <p>{formError.phone}</p>}
         </div>
 
         <div>
           <label>Address</label>
           <div>
-            <input type="text" name="address" required />
+            <input type='text' name='address' required />
           </div>
         </div>
 
         <div>
           <input
-            type="checkbox"
-            name="priority"
-            id="priority"
+            type='checkbox'
+            name='priority'
+            id='priority'
             // value={withPriority}
             // onChange={(e) => setWithPriority(e.target.checked)}
           />
-          <label htmlFor="priority">Want to yo give your order priority?</label>
+          <label htmlFor='priority'>Want to yo give your order priority?</label>
         </div>
 
         <div>
-          <button>Order now</button>
+          <input type='hidden' name='cart' value={JSON.stringify(cart)} />
+          <button disabled={isSubmitting}>
+            {isSubmitting ? "Placing order..." : "Order now"}
+          </button>
         </div>
-      </form>
+      </Form>
     </div>
   );
 }
+
+export const action = async ({ request }) => {
+  const formOrder = await request.formData();
+  const data = Object.fromEntries(formOrder);
+
+  const order = {
+    ...data,
+    cart: JSON.parse(data.cart),
+    priority: data.priority === "on",
+  };
+
+  const errors = {};
+
+  if (!isValidPhone(order.phone))
+    errors.phone =
+      "Kindly write your correct phone number we might need this to contact you";
+
+  if (Object.keys(errors).length > 0) return errors;
+
+  // if every thing if fine place order
+  const newOrder = await createOrder(order);
+
+  return redirect(`/order/${newOrder.id}`);
+};
 
 export default CreateOrder;
